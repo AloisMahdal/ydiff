@@ -83,6 +83,8 @@ function main()
         cmp_output $d/in.diff $d/in.diff "-c auto -w70" || ((e++))
         (( total += 8 ))
     done
+    cmp_output $d/in.diff $d/out.unified "-p fail_injected -c always -u" || ((e++))
+    (( total += 1 ))
 
     if (( e > 0 )); then
         echo "*** $e out of $total tests failed." >&2
