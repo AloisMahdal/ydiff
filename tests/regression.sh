@@ -2,6 +2,7 @@
 
 TOP_DIR=$(cd $(dirname $0)/.. && pwd) || exit 1
 cd $TOP_DIR || exit 1
+TEST_TMP=$(mktemp -d /tmp/ydiff-regression.XXXXXXXX)
 
 YDIFF=./ydiff.py
 
@@ -17,13 +18,31 @@ function pass()
     fi
 }
 
+function normalize_out()
+{
+    # quote ANSII ESC used to initiate color sequence, and strip any
+    # CR's at the end of the line (windows line endings are CR+LF)
+    local esc=$'\x1b'
+    local cr=$'\r'
+    sed "s/$esc/\x1b/g" | sed "s/$cr$//"
+}
+
 function fail()
 {
+    local expected_out=${1:?}
     if [[ -t 1 ]]; then
-        echo -e "\x1b[01;31mFAIL\x1b[0m" "$*"
+        echo -e "\x1b[01;31mFAIL\x1b[0m" "!= $expected_out"
     else
-        echo "FAIL" "$*"
+        echo "FAIL" "!= $expected_out"
     fi
+    normalize_out <"$TEST_TMP/cmd.out" >"$TEST_TMP/cmd.out.normalized"
+    normalize_out <"$expected_out" >"$TEST_TMP/expected-cmd.out.normalized"
+    {
+        echo "diff of expected vs. actual output (ANSI ESC quoted for readability):"
+        diff -u "$TEST_TMP/expected-cmd.out.normalized" "$TEST_TMP/cmd.out.normalized" | sed "s/^/    /"
+        echo "stderr:"
+        sed "s/^/    /" "$TEST_TMP/cmd.err"
+    } | sed "s/^/    /"
 }
 
 function show_file()
@@ -45,21 +64,12 @@ function cmp_output()
     cmd=$(printf "%-7s $YDIFF %-24s < %-30s " $PYTHON "$ydiff_opt" "$input")
     printf "$cmd"
 
-    if [[ $TRAVIS_OS_NAME == windows ]]; then
-        cmp_tool="diff --strip-trailing-crq"
-    else
-        cmp_tool="cmp"
-    fi
-
-    if eval $cmd 2>cmd.err | tee actual.out | eval $cmp_tool $expected_out - >cmp_tool.out; then
+    eval $cmd 1>"$TEST_TMP/cmd.out" 2>"$TEST_TMP/cmd.err"
+    if diff --strip-trailing-cr "$expected_out" "$TEST_TMP/cmd.out" >/dev/null; then
         pass
         return 0
     else
-        fail "!= $expected_out"
-        show_file "expected output" $expected_out
-        show_file "actual output" actual.out
-        show_file "difference ($cmp_tool)" cmp_tool.out
-        show_file "errors ($cmd)" cmd.err
+        fail "$expected_out"
         return 1
     fi
 }
