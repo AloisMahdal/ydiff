@@ -30,6 +30,7 @@ diff -r b0ef6a5a6dcc -r a9a87f0e7c50 Lib/test/test_minidom.py
          pi = dom.documentElement.firstChild
 diff -r b0ef6a5a6dcc -r a9a87f0e7c50 Lib/xml/dom/minidom.py
 --- a/Lib/xml/dom/minidom.py	Fri Sep 30 08:46:25 2011 +0300
+FAIL INJECTED
 +++ b/Lib/xml/dom/minidom.py	Sat Oct 01 21:02:49 2011 +0300
 @@ -836,7 +836,9 @@
              _write_data(writer, attrs[a_name].value)
